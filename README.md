@@ -1,6 +1,21 @@
-# Explorer
+<p align="center">
+  <a href="https://explorerglobal.cn/">
+    <img src="assets/logo.png" alt="知天下 AI — 公司官网" width="280">
+  </a>
+</p>
 
-**基于三维重建条件的图像修复与新视角合成。**
+<!-- <h1 align="center">Explorer</h1> -->
+
+<p align="center"><strong>基于三维重建条件的图像修复与新视角合成</strong></p>
+
+<p align="center">
+  <a href="https://huggingface.co/XplorerAI/ExplorerAI-v0.1-1.3b">
+    <img src="https://img.shields.io/badge/Hugging%20Face-Weights-FFD21E?logo=huggingface&amp;logoColor=FFD21E" alt="Hugging Face 权重下载">
+  </a>
+  <a href="https://explorerglobal.cn/">
+    <img src="https://img.shields.io/badge/Website-explorerglobal.cn-073363" alt="知天下 AI 公司官网">
+  </a>
+</p>
 
 Explorer 以 NVIDIA ArtiFixer 1.3B 为初始化进行进一步微调。给定参考照片、相机参数和目标视角轨迹，本文所述流程先训练粗高斯模型，再结合其 RGB 渲染、不透明度和场景尺度信息，使用 Explorer 生成目标视角的修复图像。
 
@@ -26,7 +41,11 @@ Explorer 以 NVIDIA ArtiFixer 1.3B 为初始化进行进一步微调。给定参
 
 ## 测试数据
 
-**下载地址：待补充。**
+**测试数据下载：** [阿里云 OSS](https://pubres.explorerglobal.cn/ai/explorer_inference_demo.zip) · [Google Drive（谷歌网盘）][dataset-google-drive]
+
+<!-- 发布前，将下方两个占位符替换为实际下载地址，并移除“链接待补充”。 -->
+[dataset-oss]: <ALIYUN_OSS_DATASET_URL>
+[dataset-google-drive]: <GOOGLE_DRIVE_DATASET_URL>
 
 测试数据包含以下五个场景。每个场景由 `colmap_reference/` 和 `colmap_trajectory/` 两部分组成，分别提供参考视角数据、目标轨迹数据以及目标视角下真实图像。两者均包含 `images/` 与 `sparse/` 目录。
 
@@ -79,7 +98,11 @@ Explorer 以 NVIDIA ArtiFixer 1.3B 为初始化进行进一步微调。给定参
 
 本文使用 `Dockerfile.3090-unified`。文件名不代表实测显存要求；支持的 GPU、峰值显存和耗时需以最终发布配置的实测结果为准。
 
-在本地准备以下模型文件，下载地址和版本将在发布时补齐：
+**Explorer 权重下载：** [🤗 XplorerAI/ExplorerAI-v0.1-1.3b](https://huggingface.co/XplorerAI/ExplorerAI-v0.1-1.3b)。
+
+下载后，将 Explorer checkpoint 放到下方约定的本地位置，或相应修改推理命令中的 `--checkpoint`。其余依赖模型的下载地址和版本将在发布时补齐。
+
+在本地准备以下模型文件：
 
 ```text
 <MODEL_ROOT>/
@@ -280,11 +303,7 @@ python -u model_eval/run_inference-no_caption-from_colmap.py \
 
 ## 与 ArtiFixer 的关系及差异分析
 
-Explorer 使用 ArtiFixer 1.3B 权重初始化，并在此基础上进一步微调。下面分别说明推理流程和已测量的权重变化。
-
-### 本示例的推理流程
-
-本示例将参考 COLMAP 输入、3DGUT 场景重建、目标视角渲染、MoGe3 尺度估计和无 caption 推理串联起来。示例采用 12 张参考图、81 个目标视角和 50 步采样；这些设置描述本流程，不构成相对上游的性能提升证据。
+Explorer 使用 ArtiFixer 1.3B 权重初始化，并在此基础上进一步微调。下面分别说明已测量的权重变化。
 
 ### 权重更新幅度
 
@@ -296,15 +315,14 @@ $$
 r=\frac{\|\Delta W\|_F}{\|W_0\|_F}.
 $$
 
-朴素理解：先把所有参数的变化量平方求和再开方，得到“总共改动了多少”；再除以原始权重的大小，便于比较不同模块的相对改动。整体指标使用全部对齐参数；模块指标先在对应矩阵组内合并平方和，再计算比值。
+<!-- 朴素理解：先把所有参数的变化量平方求和再开方，得到“总共改动了多少”；再除以原始权重的大小，便于比较不同模块的相对改动。整体指标使用全部对齐参数；模块指标先在对应矩阵组内合并平方和，再计算比值。 -->
 
 | 权重空间指标 | 实测结果 | 含义或参数作用 |
 | --- | ---: | --- |
-| 整体相对 Frobenius 更新 | **1.6094%** | 衡量全部参数相对于原始权重范数的总体更新幅度。 |
-| 整体余弦相似度 | **0.9998705** | 衡量展平后权重向量的方向接近程度，不等同于模型能力相似度。 |
-| 邻视图 V 投影矩阵相对更新 | **47.5230%** | 将邻视图内容映射为交叉注意力的值特征，影响纹理和外观信息如何参与目标视角生成。 |
-| 相机条件矩阵相对更新 | **21.6898%** | 将相机射线几何映射为内部特征，影响模型如何利用视点和观察方向信息。 |
-| 不透明度条件矩阵相对更新 | **14.3097%** | 编码重建渲染的不透明度，为模型提供几何覆盖程度的线索，参与修复与补全。 |
+| 整体相对 Frobenius | **1.61%** | 衡量全部参数相对于原始权重范数的总体更新幅度 |
+| 邻视图 V 投影矩阵 | **47.52%** | 将邻视图内容映射为交叉注意力的值特征，影响纹理和外观信息如何参与目标视角生成。 |
+| 相机条件矩阵 | **21.69%** | 将相机射线几何映射为内部特征，影响模型如何利用视点和观察方向信息。 |
+| 不透明度条件矩阵 | **14.31%** | 编码重建渲染的不透明度，为模型提供几何覆盖程度的线索，参与修复与补全。 |
 
 后三项在全部 30 个 Transformer block 的对应权重矩阵上汇总，不含偏置。原始矩阵范数较小时，相对更新百分比也可能较大。
 
@@ -325,3 +343,11 @@ Explorer 的初始化来源为 [ArtiFixer 1.3B](https://huggingface.co/nvidia/Ar
 - [MoGe](https://github.com/microsoft/MoGe)：提供单目几何估计，用于本流程的场景尺度估计。
 - [3DGRUT](https://github.com/nv-tlabs/3dgrut)：提供高斯场景重建与渲染。请使用 Explorer 仓库包含的兼容依赖版本。
 - [Wan 2.1](https://github.com/Wan-Video/Wan2.1)：提供底层模型系列。
+
+## 加入我们
+
+我们关注三维重建、新视角合成与生成式模型，欢迎对这些方向感兴趣的研究者和工程师加入 Explorer，一起探索三维场景的理解与生成。
+
+如果你有相关研究或工程经验，欢迎将简历发送至 **[cv@explorer.global](mailto:cv@explorer.global)**，并附上能够展示你工作的 GitHub 项目、论文或 Demo。
+
+邮件主题建议使用：`加入 Explorer－姓名－研究或技术方向`。
