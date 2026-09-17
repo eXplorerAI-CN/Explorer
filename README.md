@@ -23,6 +23,8 @@ Explorer 以 NVIDIA ArtiFixer 1.3B 为初始化进行进一步微调。给定参
 
 ### TowerShipModel
 
+https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/sailing-ship-comparison.mp4
+
 <video src="https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/sailing-ship-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video>
 
 
