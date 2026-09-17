@@ -50,7 +50,7 @@ https://github.com/user-attachments/assets/e54f5ea0-c936-44e6-99b8-425783c25379
 
 ## 测试数据
 
-**测试数据下载：** [阿里云 OSS](https://pubres.explorerglobal.cn/ai/explorer_inference_demo.zip) · [Google Drive（谷歌网盘）][dataset-google-drive]
+**测试数据下载：** [阿里云 OSS](https://pubres.explorerglobal.cn/ai/explorer_inference_demo.zip) · [Google Drive（谷歌网盘）](https://drive.google.com/file/d/1iG8mYy2K4dsNDKPML9rxNjeN39XK5L88/view?usp=sharing)
 
 <!-- 发布前，将下方两个占位符替换为实际下载地址，并移除“链接待补充”。 -->
 [dataset-oss]: <ALIYUN_OSS_DATASET_URL>
