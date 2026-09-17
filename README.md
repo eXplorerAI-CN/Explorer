@@ -1,5 +1,4 @@
 
-https://github.com/user-attachments/assets/dedef091-b00f-4721-9cb7-285587b598d8
 <p align="center">
   <a href="https://explorerglobal.cn/">
     <img src="assets/logo.png" alt="知天下 AI — 公司官网" width="280">
