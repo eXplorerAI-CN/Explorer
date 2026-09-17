@@ -6,6 +6,7 @@
 </p>
 
 <!-- <h1 align="center">Explorer</h1> -->
+##
 
 <p align="center"><strong>基于三维重建条件的图像修复与新视角合成</strong></p>
 
@@ -17,8 +18,6 @@
     <img src="https://img.shields.io/badge/Website-explorerglobal.cn-073363" alt="知天下 AI 公司官网">
   </a>
 </p>
-
-##
 
 Explorer 以 NVIDIA ArtiFixer 1.3B 为初始化进行进一步微调。给定参考照片、相机参数和目标视角轨迹，本文所述流程先训练粗高斯模型，再结合其 RGB 渲染、不透明度和场景尺度信息，使用 Explorer 生成目标视角的修复图像。
 
