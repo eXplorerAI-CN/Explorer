@@ -23,7 +23,7 @@ Explorer 以 NVIDIA ArtiFixer 1.3B 为初始化进行进一步微调。给定参
 
 ### TowerShipModel
 
-<video src="assets/demo/sailing-ship-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video>
+<video src="https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/sailing-ship-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video>
 
 
 <!-- ### XJTLUGateOfWisdomStoneGate
@@ -32,11 +32,11 @@ Explorer 以 NVIDIA ArtiFixer 1.3B 为初始化进行进一步微调。给定参
 
 ### JinshanlingGreatWall
 
-<video src="assets/demo/great-wall-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video>
+<video src="https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/great-wall-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video>
 
 ### SuzhouOfficeBuilding
 
-<video src="assets/demo/urban-buildings-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video>
+<video src="https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/urban-buildings-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video>
 
 
 ## 测试数据
