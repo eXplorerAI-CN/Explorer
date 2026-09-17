@@ -1,3 +1,5 @@
+
+https://github.com/user-attachments/assets/dedef091-b00f-4721-9cb7-285587b598d8
 <p align="center">
   <a href="https://explorerglobal.cn/">
     <img src="assets/logo.png" alt="知天下 AI — 公司官网" width="280">
@@ -23,9 +25,9 @@ Explorer 以 NVIDIA ArtiFixer 1.3B 为初始化进行进一步微调。给定参
 
 ### TowerShipModel
 
-https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/sailing-ship-comparison.mp4
+https://github.com/user-attachments/assets/d32b91c5-5aa9-49eb-915c-9ee43752be4b
 
-<video src="https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/sailing-ship-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video>
+<!-- <video src="https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/sailing-ship-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video> -->
 
 
 <!-- ### XJTLUGateOfWisdomStoneGate
@@ -34,11 +36,16 @@ https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/sail
 
 ### JinshanlingGreatWall
 
-<video src="https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/great-wall-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video>
+https://github.com/user-attachments/assets/2d012e02-63de-4faf-b28a-48288353369f
+
+<!-- <video src="https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/great-wall-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video> -->
 
 ### SuzhouOfficeBuilding
 
-<video src="https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/urban-buildings-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video>
+<!-- <video src="https://github.com/eXplorerAI-CN/Explorer/tree/main/assets/demo/assets/demo/urban-buildings-comparison.mp4" controls muted playsinline preload="metadata" width="100%"></video> -->
+
+https://github.com/user-attachments/assets/e54f5ea0-c936-44e6-99b8-425783c25379
+
 
 
 ## 测试数据
