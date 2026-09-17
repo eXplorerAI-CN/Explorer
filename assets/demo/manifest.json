@@ -1,0 +1,35 @@
+{
+  "source": "用户提供的四张静态对比图，按原始顺序整理。",
+  "processing": "原始 PNG 文件逐字节复制，未裁剪、重绘或改变图像内容。",
+  "scene_names": "用于展示的描述性名称，不代表测试数据集内的正式目录名。",
+  "images": [
+    {
+      "file": "sailing-ship-comparison.png",
+      "scene": "帆船展品",
+      "width": 1568,
+      "height": 672,
+      "sha256": "1bb45cc5597feef2474d7d728a92ddd58abcc8a8eec5798bb8fd00ddff5b021e"
+    },
+    {
+      "file": "stone-gate-comparison.png",
+      "scene": "石门",
+      "width": 1422,
+      "height": 632,
+      "sha256": "5e3e28b583eb7498d0c61b2ed0989e8d74179336bff03df268127417b588e84b"
+    },
+    {
+      "file": "great-wall-comparison.png",
+      "scene": "长城山地",
+      "width": 1920,
+      "height": 386,
+      "sha256": "cb4571341d2fc1775953c7666bd2a94328004e7283165a80b02fc3947d19e7a1"
+    },
+    {
+      "file": "urban-buildings-comparison.png",
+      "scene": "城市建筑群",
+      "width": 1920,
+      "height": 386,
+      "sha256": "d11679b52411a58cfc7c13b245dcb2e93b59c6847b2d4d3c96af26f1b2998e6b"
+    }
+  ]
+}

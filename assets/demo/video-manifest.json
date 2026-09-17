@@ -1,0 +1,97 @@
+{
+  "processing": "源视频逐字节复制，未修改编码、帧、速度或内容。",
+  "videos": [
+    {
+      "file": "sailing-ship-comparison.mp4",
+      "source_filename": "室内帆船工艺品_基模补全.mp4",
+      "scene": "室内帆船工艺品",
+      "sha256": "1a980b6564e170d067e74d25259ad0c63a9a82924dc7c0333cd6771fc6c09753",
+      "media": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "codec_type": "video",
+            "width": 1280,
+            "height": 608,
+            "pix_fmt": "yuv420p"
+          }
+        ],
+        "format": {
+          "duration": "27.000000",
+          "size": "1650155"
+        }
+      }
+    },
+    {
+      "file": "stone-gate-comparison.mp4",
+      "source_filename": "大学石门_基模补全.mp4",
+      "scene": "大学石门",
+      "sha256": "34420caab20d7ab1813e9ea4c4c58c045322820afa27dcd3c8a1fcac7e148f69",
+      "media": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "codec_type": "video",
+            "width": 1280,
+            "height": 608,
+            "pix_fmt": "yuv420p"
+          }
+        ],
+        "format": {
+          "duration": "20.250000",
+          "size": "1635859"
+        }
+      }
+    },
+    {
+      "file": "great-wall-comparison.mp4",
+      "source_filename": "金山岭长城对比explorer和artifixer.mp4",
+      "scene": "金山岭长城",
+      "sha256": "9df4929ac9e6c520217043c998879c99dd2a71a089306fcc983e0993e73ff876",
+      "media": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "codec_type": "video",
+            "width": 3840,
+            "height": 770,
+            "pix_fmt": "yuv420p"
+          }
+        ],
+        "format": {
+          "duration": "20.250000",
+          "size": "23475481"
+        }
+      }
+    },
+    {
+      "file": "urban-buildings-comparison.mp4",
+      "source_filename": "苏州阳澄数谷对比explorer和artifixer.mp4",
+      "scene": "苏州阳澄数谷",
+      "sha256": "b1b566ae639eefeab12c3e6ef51b8d82f8d102ee9a0e8e1b493446a4be95ee54",
+      "media": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "codec_type": "video",
+            "width": 3840,
+            "height": 772,
+            "pix_fmt": "yuv420p"
+          }
+        ],
+        "format": {
+          "duration": "20.250000",
+          "size": "53275978"
+        }
+      }
+    }
+  ]
+}
