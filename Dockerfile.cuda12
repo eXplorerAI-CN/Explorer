@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# CUDA 12 x86 — Hopper (H100, sm_90) and Blackwell (B200, sm_100)
+FROM nvcr.io/nvidia/pytorch:25.01-py3
+
+ENV DEBIAN_FRONTEND=noninteractive
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG FLASH_ATTN_MAX_JOBS=16
+ARG FLASH_ATTN_NVCC_THREADS=2
+RUN apt-get update && apt-get install -y -qq --no-install-recommends \
+    wget git curl build-essential gcc-11 g++-11 libgl1-mesa-dev libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install torch==2.11.0 torchvision --index-url https://download.pytorch.org/whl/cu128
+RUN pip uninstall -y flash-attn opencv-python || true
+RUN rm -rf /usr/local/lib/python3.12/dist-packages/cv2*
+
+WORKDIR /workspace
+COPY ./thirdparty/ ./thirdparty/
+
+WORKDIR ./thirdparty/3DGRUT-ArtiFixer/
+RUN pip install -r requirements.txt
+RUN bash scripts/install_slangc.sh /usr/local
+RUN pip install -e .
+
+# FA3 — Hopper kernels (warp specialization, async TMA, FP8)
+# Installs flash_attn_3 package + flash_attn_interface (top-level) + torch.ops.flash_attn_3
+# Filter ptxas output to stay under Docker's 2MB log limit per step
+RUN git clone --depth 1 https://github.com/Dao-AILab/flash-attention.git /tmp/flash-attention && \
+    cd /tmp/flash-attention/hopper && \
+    MAX_JOBS=${FLASH_ATTN_MAX_JOBS} \
+    NVCC_THREADS=${FLASH_ATTN_NVCC_THREADS} \
+    pip install . 2>&1 | awk '!/^ptxas info/' && \
+    cd / && rm -rf /tmp/flash-attention
+
+# FA4 — CuTeDSL kernels for Hopper+Blackwell (flash_attn.cute)
+RUN pip install --pre flash-attn-4
+
+# flash-attn-4 upgrades cuda-python to 12.9+ namespace stub missing cuda.bindings.driver;
+# downgrade to monolithic 12.6.2 which bundles the compiled bindings
+RUN pip install --force-reinstall --no-deps "cuda-python==12.6.2.post1"
+
+RUN pip install accelerate==1.13.0 diffusers==0.37.1 transformers==5.5.0 ftfy
+
+WORKDIR /workspace
+RUN pip install einops scipy wandb tqdm Pillow matplotlib opencv-python-headless \
+    pyyaml torchmetrics imageio-ffmpeg h5py av torch-fidelity \
+    git+https://github.com/microsoft/MoGe.git
+
+COPY tests/test_flash_attn.py /workspace/test_flash_attn.py
+RUN python -c "import flash_attn_interface; print('FA3 ok')"
+RUN python -c "import flash_attn_3; print('FA3 package ok')"
+RUN pip show flash-attn-4 | grep Version && echo 'FA4 ok'
+RUN python -c "import cv2; print('cv2 ok:', cv2.__version__)"
+RUN python -c "from moge.model.v2 import MoGeModel; print('MoGe ok')"

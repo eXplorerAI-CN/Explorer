@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# CUDA 13 aarch64 — GB200 (Grace ARM64 + Blackwell GPU, sm_100 / sm_121)
+# NGC 26.03-py3 ships torch 2.11 + CUDA 13.2 natively for aarch64.
+FROM nvcr.io/nvidia/pytorch:26.03-py3
+
+ENV DEBIAN_FRONTEND=noninteractive
+# fused-ssim compiles during the build; default to one job to avoid QEMU segfaults in aarch64 cross-builds.
+ARG FUSED_SSIM_MAX_JOBS=1
+
+RUN apt-get update && apt-get install -y -qq --no-install-recommends \
+    wget git curl build-essential libgl1-mesa-dev libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN truncate -s 0 /etc/pip/constraint.txt || true
+RUN pip uninstall -y flash-attn opencv-python || true
+RUN rm -rf /usr/local/lib/python3.12/dist-packages/cv2*
+
+WORKDIR /workspace
+COPY ./thirdparty/ ./thirdparty/
+
+WORKDIR ./thirdparty/3DGRUT-ArtiFixer/
+# Strip packages unavailable or broken on aarch64 in the upstream 3DGRUT requirements.
+RUN sed -i '/^setuptools/d; /^usd-core/d; /^slangtorch/d; /^libigl/d; /^git+.*fused-ssim/d' requirements.txt
+RUN pip install -r requirements.txt
+RUN MAX_JOBS=${FUSED_SSIM_MAX_JOBS} pip install --no-build-isolation "fused_ssim @ git+https://github.com/rahul-goel/fused-ssim@1272e21a282342e89537159e4bad508b19b34157"
+# Install native aarch64 slangc (slangtorch ships x86-only binaries)
+RUN bash scripts/install_slangc.sh /usr/local
+RUN pip install -e .
+
+# FA4 — CuTeDSL kernels with [cu13] extra for sm_121 (GB200)
+RUN pip install --pre "flash-attn-4[cu13]"
+
+# flash-attn-4 pulls nvidia-cutlass-dsl 4.5.0.dev0 which is broken on aarch64
+# (missing compiled MLIR extensions). Downgrade to 4.4.2 which has them.
+RUN pip install --force-reinstall \
+    nvidia-cutlass-dsl==4.4.2 \
+    nvidia-cutlass-dsl-libs-base==4.4.2 \
+    "nvidia-cutlass-dsl-libs-cu13>=4.4.2"
+
+# cutlass-dsl 4.4.2 needs cuda.bindings.driver from cuda-python 13.x.
+# NGC 26.03 has CUDA 13.2 runtime so 13.x works natively on aarch64.
+RUN pip install --force-reinstall cuda-python==13.2.0 cuda-bindings==13.2.0
+
+RUN pip install accelerate==1.13.0 diffusers==0.37.1 transformers==5.5.0 ftfy
+
+WORKDIR /workspace
+RUN pip install einops scipy wandb tqdm Pillow matplotlib opencv-python-headless \
+    pyyaml torchmetrics imageio-ffmpeg h5py av torch-fidelity \
+    git+https://github.com/microsoft/MoGe.git
+
+COPY tests/test_flash_attn.py /workspace/test_flash_attn.py
+RUN python -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.version.cuda)"
+RUN pip show nvidia-cutlass-dsl | grep Version && echo 'cutlass-dsl ok'
+RUN pip show flash-attn-4 | grep Version && echo 'FA4 ok'
+RUN python -c "import cv2; print('cv2 ok:', cv2.__version__)"
+RUN python -c "from moge.model.v2 import MoGeModel; print('MoGe ok')"

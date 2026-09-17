@@ -1,0 +1,3 @@
+[submodule "thirdparty/3DGRUT-ArtiFixer"]
+	path = thirdparty/3DGRUT-ArtiFixer
+	url = https://github.com/nv-tlabs/3DGRUT-ArtiFixer.git

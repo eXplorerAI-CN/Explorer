@@ -1,0 +1,168 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
+import sys
+
+import torch
+import torch.utils.cpp_extension
+from torch.utils.cpp_extension import CUDA_HOME
+
+
+def compile_slang_kernel(kernel_files: list[str], output_file: str, defines: list[str], include_paths: list[str]):
+    import importlib
+    import subprocess
+
+    slang_build_env = os.environ.copy()
+    slang_build_env["PATH"] += ";" if os.name == "nt" else ":"
+
+    try:
+        slang_mod = importlib.import_module("slangtorch")
+        slang_build_env["PATH"] += os.path.join(os.path.dirname(slang_mod.__file__), "bin")
+    except ImportError:
+        print("Slangtorch not found, assuming slangc is in the path")
+
+    subprocess.check_call(
+        [
+            "slangc",
+            "-target",
+            "cuda",
+            *(arg for path in include_paths for arg in ("-I", path)),
+            "-line-directive-mode",
+            "none",
+            "-matrix-layout-row-major",
+            "-O2",
+            *defines,
+            *kernel_files,
+            "-o",
+            output_file,
+        ],
+        env=slang_build_env,
+    )
+
+
+def load(
+    extra_cflags=None,
+    extra_cuda_cflags=None,
+    extra_ldflags=None,
+    extra_include_paths=None,
+    with_cuda=True,
+    verbose=True,
+    *args,
+    **kwargs,
+):
+
+    # Make sure we can find the necessary compiler and libary binaries.
+    if os.name == "nt":
+
+        def find_cl_path():
+            import glob
+
+            for arch in [" (x86)", ""]:
+                for edition in ["Enterprise", "Professional", "BuildTools", "Community"]:
+                    paths = sorted(
+                        glob.glob(
+                            r"C:\Program Files%s\Microsoft Visual Studio\*\%s\VC\Tools\MSVC\*\bin\Hostx64\x64"
+                            % (arch, edition)
+                        ),
+                        reverse=True,
+                    )
+                    if paths:
+                        return paths[0]
+
+        # If cl.exe is not on path, try to find it.
+        if os.system("where cl.exe >nul 2>nul") != 0:
+            cl_path = find_cl_path()
+            if cl_path is None:
+                raise RuntimeError("Could not locate a supported Microsoft Visual C++ installation")
+            os.environ["PATH"] += ";" + cl_path
+
+    elif os.name == "posix":
+        pass
+
+    # Compiler flags.
+    cflags = [
+        "-DNVDR_TORCH",
+    ]
+    # Add Windows-specific flags
+    if os.name == "nt":
+        cflags.append("/DNOMINMAX")
+
+    if extra_cflags is not None:
+        cflags += extra_cflags
+
+    cuda_cflags = [
+        "-DNVDR_TORCH",
+        "-std=c++17",
+        "--extended-lambda",
+        "--expt-relaxed-constexpr",
+        "-Xcompiler=-fno-strict-aliasing",
+    ]
+    if extra_cuda_cflags is not None:
+        cuda_cflags += extra_cuda_cflags
+
+    # Linker options.
+    if os.name == "posix":
+        # Discover CUDA target dirs dynamically: CUDA 13 on aarch64 uses
+        # `sbsa-linux` (Server Base System Architecture), not `aarch64-linux`.
+        ldflags = [f"-L{os.path.join(CUDA_HOME, 'lib', 'stubs')}"]
+        targets_dir = os.path.join(CUDA_HOME, "targets")
+        if os.path.isdir(targets_dir):
+            for arch in os.listdir(targets_dir):
+                lib_dir = os.path.join(targets_dir, arch, "lib")
+                stubs_dir = os.path.join(lib_dir, "stubs")
+                if os.path.isdir(lib_dir):
+                    ldflags.append(f"-L{lib_dir}")
+                if os.path.isdir(stubs_dir):
+                    ldflags.append(f"-L{stubs_dir}")
+        ldflags += ["-lcuda", "-lnvrtc"]
+    elif os.name == "nt":
+        ldflags = [
+            "cuda.lib",
+            "advapi32.lib",
+            "nvrtc.lib",
+        ]
+    if extra_ldflags is not None:
+        ldflags += extra_ldflags
+
+    # Include paths.
+    include_paths = []
+
+    if os.path.isdir(os.path.join(CUDA_HOME, "targets")):
+        for arch in os.listdir(os.path.join(CUDA_HOME, "targets")):
+            if os.path.isdir(p := os.path.join(CUDA_HOME, "targets", arch, "include")):
+                include_paths.append(p)
+
+    if extra_include_paths is not None:
+        include_paths += extra_include_paths
+
+    # Load
+    module = torch.utils.cpp_extension.load(
+        extra_cflags=cflags,
+        extra_cuda_cflags=cuda_cflags,
+        extra_ldflags=ldflags,
+        extra_include_paths=include_paths,
+        with_cuda=with_cuda,
+        verbose=verbose,
+        *args,
+        **kwargs,
+    )
+
+    # Register module in sys.modules for pybind11 3.x compatibility
+    module_name = kwargs.get("name")
+    if module_name is not None:
+        sys.modules[module_name] = module
+
+    return module

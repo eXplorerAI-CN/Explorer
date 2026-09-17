@@ -1,0 +1,202 @@
+# Explorer 单 Python 环境：官方 3DGUT 训练/渲染 + MoGe3 + ArtiFixer 兼容的 1.3B 推理。
+# 在仓库根目录构建；先执行 git submodule update --init --recursive。
+# 3090 使用 native SDPA，不安装只针对 Hopper/Blackwell 的 FA3/FA4。
+# 使用 3090 已缓存的官方 CUDA12.8 开发镜像，避免重新拉取大体积基础镜像。
+# 在同一 /opt/conda 环境升级框架；运行时只保留一套生效的 Torch。
+# Docker 的旧基础层仍占空间，可移植的干净重建并不依赖本机的旧业务镜像。
+ARG BASE_IMAGE=pytorch/pytorch:2.8.0-cuda12.8-cudnn9-devel
+# 可选缓存入口：--build-context vgg_cache=/含有VGG文件的目录。
+# 未提供时该公共基础镜像中没有此文件，后面的步骤会正常联网下载。
+FROM ${BASE_IMAGE} AS vgg_cache
+# 同样支持 --build-context source_cache=/固定官方归档目录。
+FROM ${BASE_IMAGE} AS source_cache
+FROM ${BASE_IMAGE}
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake ninja-build \
+        git curl wget ca-certificates ffmpeg libgl1 libegl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 默认使用官方索引。国内构建可传可信 PyPI 镜像，以及阿里的 flat wheel 目录。
+# 阿里 pytorch-wheels 不是 simple index，必须用 FIND_LINKS，不能冒充 INDEX_URL。
+ARG PIP_INDEX_URL=https://pypi.org/simple
+ARG PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cu128
+ARG PYTORCH_FIND_LINKS=""
+
+# 沿用基础镜像的 Python 环境；CUDA toolkit 与 PyTorch 均为 12.8。
+ENV PATH=/opt/conda/bin:${PATH} \
+    CUDA_HOME=/usr/local/cuda \
+    TORCH_CUDA_ARCH_LIST=8.6 \
+    TCNN_CUDA_ARCHITECTURES=86 \
+    MAX_JOBS=4 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    MPLBACKEND=Agg
+RUN python -m pip uninstall -y torchaudio torchtext \
+    && python -m pip install --upgrade pip "setuptools==71.1.0" wheel \
+    && torch_sources=(--index-url "${PYTORCH_INDEX_URL}") \
+    && if [[ -n "${PYTORCH_FIND_LINKS}" ]]; then \
+           torch_sources+=(--find-links "${PYTORCH_FIND_LINKS}"); \
+       fi \
+    && python -m pip download --no-deps --dest /tmp/torch-wheels \
+        "${torch_sources[@]}" torch==2.11.0+cu128 torchvision==0.26.0+cu128 \
+    && echo 'c9a7ca4c74fae10a58e6175b4b2cea953f9322bb6562bbf339ad6a05f52190ad  /tmp/torch-wheels/torch-2.11.0+cu128-cp311-cp311-manylinux_2_28_x86_64.whl' | sha256sum -c - \
+    && echo '8f2629d056570c929b0a1d5473d9cb0320b90bda1764bda353553a72cc6b2069  /tmp/torch-wheels/torchvision-0.26.0+cu128-cp311-cp311-manylinux_2_28_x86_64.whl' | sha256sum -c - \
+    && python -m pip install /tmp/torch-wheels/*.whl \
+    && rm -rf /tmp/torch-wheels
+
+# MoGe3 要求 NumPy >= 2；使用支持 NumPy 2 的科学计算依赖和 OpenCV 4.11。
+# 3DGRUT 的 opencv<4.12 约束仍满足。setuptools 保留官方 JIT 所需版本。
+# 这是无界面的推理环境：MoGe 的 Gradio/训练工具不在此镜像中安装。
+RUN python -m pip install \
+        accelerate==1.13.0 diffusers==0.37.1 transformers==5.5.0 ftfy==6.3.1 \
+        numpy==2.3.2 scipy==1.17.1 matplotlib==3.10.8 \
+        scikit-learn==1.7.2 h5py==3.15.1 \
+        opencv-python-headless==4.11.0.86 Pillow==11.0.0 \
+        torchmetrics==1.6.1 torch-fidelity==0.3.0 \
+        hydra-core==1.3.2 omegaconf==2.3.0 tensorboard==2.18.0 \
+        plyfile==1.1.2 rich==13.9.4 kornia==0.8.3 \
+        einops==0.8.1 imageio==2.37.0 imageio-ffmpeg==0.6.0 av==15.0.0 \
+        msgpack==1.1.0 dataclasses-json==0.6.7 tqdm==4.67.1 \
+        wandb==0.19.1 pyyaml==6.0.2 click==8.4.2 \
+        slangtorch==1.3.4 polyscope==2.5.0 fire==0.7.1 addict==2.4.0 \
+        trimesh==4.11.2 moderngl==5.12.0 requests
+
+# 固定官方源码提交。直接读取 MoGe 模块，避免为图片深度推理装入 Web UI。
+# FlexGEMM 使用官方默认的 Triton 后端，和已经实测的 MoGe3 镜像一致。
+ARG MOGE_COMMIT=74fbce054ebed49800de42d0ad0e83495065719a
+ARG UTILS3D_MOGE_COMMIT=62f09d58509485564e24d5d9f6aac9ee9ebc0c37
+ARG FLEX_GEMM_COMMIT=b2fadb29d41846c7981ade6801ffc689fae119cf
+ARG FUSED_SSIM_COMMIT=1272e21a282342e89537159e4bad508b19b34157
+# commit 与归档 SHA256 成对固定，升级源码时需要一起更新。
+# 有本地缓存就校验后使用；没有就从同一个官方 URL 下载并做相同校验。
+RUN --mount=type=bind,from=source_cache,target=/source-cache,readonly python - <<'PY'
+from pathlib import Path
+import hashlib
+import os
+import shutil
+import subprocess
+sources = [
+    ('MoGe', 'microsoft/MoGe', os.environ['MOGE_COMMIT'],
+     'cc6f3525cec7694b97d6d9af7d8854f546cda082f3abc944be17dfb6ad892309'),
+    ('utils3d-moge', 'EasternJournalist/utils3d-moge', os.environ['UTILS3D_MOGE_COMMIT'],
+     'a6917f2e641b1221daf2e2df06f4605e1754defa07abf4059fc514ddbebffc68'),
+    ('FlexGEMM', 'JeffreyXiang/FlexGEMM', os.environ['FLEX_GEMM_COMMIT'],
+     '729c3c21026d211aec1fd5fc07ed8856f8d47ed5d0324ef12f701c1addc2526a'),
+    ('fused-ssim', 'rahul-goel/fused-ssim', os.environ['FUSED_SSIM_COMMIT'],
+     'e688501b812bf37b62eabdd089d9e1b2b4bbba1b8bc4b6780604d901ce3c5146'),
+]
+for name, repo, commit, expected in sources:
+    archive = Path('/source-cache') / f'{name}.tar.gz'
+    if not archive.is_file():
+        archive = Path('/tmp') / f'{name}.tar.gz'
+        subprocess.run(['curl', '-fL', '--retry', '5', '--retry-all-errors',
+                        '--output', str(archive),
+                        f'https://codeload.github.com/{repo}/tar.gz/{commit}'], check=True)
+    with archive.open('rb') as stream:
+        actual = hashlib.file_digest(stream, 'sha256').hexdigest()
+    assert actual == expected, f'{name}: source archive hash mismatch: {actual}'
+    destination = Path('/opt/vendor') / name
+    destination.mkdir(parents=True, exist_ok=True)
+    subprocess.run(['tar', '-xzf', str(archive), '--strip-components=1',
+                    '-C', str(destination)], check=True)
+    if archive.parent == Path('/tmp'):
+        archive.unlink()
+    print(name, commit, actual, flush=True)
+# 官方安装脚本会优先使用 /tmp 中已有的同名 Slang 归档。
+slang = Path('/source-cache/slang-2026.5.2-linux-x86_64.tar.gz')
+if slang.is_file():
+    with slang.open('rb') as stream:
+        actual = hashlib.file_digest(stream, 'sha256').hexdigest()
+    assert actual == 'd4f93f5e541a42b6e5a75b82ac5f787077ec74d80227dbfc5963324a4e8efcf1', actual
+    shutil.copyfile(slang, Path('/tmp') / slang.name)
+    print('Slang cache verified:', actual, flush=True)
+PY
+RUN python -m pip install --no-deps /opt/vendor/utils3d-moge /opt/vendor/FlexGEMM \
+    && python -m pip install --no-deps --no-build-isolation /opt/vendor/fused-ssim
+
+# 使用当前仓库锁定的官方 3DGRUT 子模块；不使用其他 PyTorch 环境的 .so。
+# 源码必须留在镜像中，第一次训练时官方代码会进行 CUDA/Slang JIT 编译。
+COPY thirdparty/3DGRUT-ArtiFixer /opt/3DGRUT-ArtiFixer
+WORKDIR /opt/3DGRUT-ArtiFixer
+RUN test -f thirdparty/tiny-cuda-nn/include/tiny-cuda-nn/common.h \
+    && test -f thirdparty/tiny-cuda-nn/dependencies/fmt/include/fmt/core.h \
+    && bash scripts/install_slangc.sh /usr/local \
+    && python -m pip install --no-deps --no-build-isolation -e .
+
+# 官方 Trainer 初始化 LPIPS 时会读取 VGG16。构建时备齐，运行时无需联网。
+# 单独放在 TORCH_HOME 中，不能被运行时的 /tmp 缓存挂载覆盖。
+ENV TORCH_HOME=/opt/torch-cache
+RUN --mount=type=bind,from=vgg_cache,target=/vgg-cache,readonly python - <<'PY'
+from pathlib import Path
+import hashlib
+import shutil
+from torch.hub import download_url_to_file
+from torchvision.models import VGG16_Weights
+directory = Path('/opt/torch-cache/hub/checkpoints')
+directory.mkdir(parents=True, exist_ok=True)
+destination = directory / 'vgg16-397923af.pth'
+cached = Path('/vgg-cache/vgg16-397923af.pth')
+if cached.is_file():
+    shutil.copyfile(cached, destination)
+else:
+    download_url_to_file(VGG16_Weights.IMAGENET1K_V1.url,
+                         str(destination), hash_prefix='397923af')
+with destination.open('rb') as stream:
+    actual = hashlib.file_digest(stream, 'sha256').hexdigest()
+assert actual == '397923af8e79cdbb6a7127f12361acd7a2f83e06b05044ddf496e83de57a5bf0', actual
+print('VGG16 cache verified:', actual)
+PY
+
+# 主仓库可在运行时只读挂载到此路径；3DGRUT/MoGe 来自镜像固定源码。
+WORKDIR /workspace/Explorer
+COPY data_processing ./data_processing
+COPY model_training ./model_training
+COPY model_eval ./model_eval
+COPY README.md ./README.md
+COPY default_negative_prompt.pt ./default_negative_prompt.pt
+# 官方 DEFAULT_CONFIG_DIR 从主仓库的 thirdparty 路径寻找配置文件。
+# 裸镜像和只读挂载主仓库两种启动方式都使用相同的官方目录结构。
+RUN mkdir -p thirdparty \
+    && ln -s /opt/3DGRUT-ArtiFixer thirdparty/3DGRUT-ArtiFixer
+ENV PYTHONPATH=/workspace/Explorer:/opt/3DGRUT-ArtiFixer:/opt/vendor/MoGe \
+    HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1 \
+    MPLCONFIGDIR=/tmp/matplotlib \
+    XDG_CACHE_HOME=/tmp/cache \
+    TORCH_EXTENSIONS_DIR=/tmp/cache/torch_extensions \
+    TRITON_CACHE_DIR=/tmp/cache/triton \
+    FLEX_GEMM_AUTOTUNE_CACHE_PATH=/opt/vendor/FlexGEMM/autotune_cache.json \
+    FLEX_GEMM_AUTOSAVE_AUTOTUNE_CACHE=0 \
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+# 构建期不需要 GPU。FlexGEMM 的 import 会查询 GPU 型号，留给 GPU 冒烟检查。
+RUN python - <<'PY'
+import importlib.metadata as metadata
+from pathlib import Path
+import cv2, fused_ssim, numpy, torch, torchvision
+from diffusers import AutoencoderKLWan, WanTransformer3DModel
+from torch.nn.attention import activate_flash_attention_impl
+from threedgrut.trainer import Trainer3DGRUT
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+assert torch.__version__.startswith('2.11.0+cu128'), torch.__version__
+assert torchvision.__version__.startswith('0.26.0+cu128'), torchvision.__version__
+assert numpy.__version__ == '2.3.2'
+assert metadata.version('diffusers') == '0.37.1'
+assert metadata.version('transformers') == '5.5.0'
+assert Path('/opt/vendor/MoGe/moge/model/v3.py').is_file()
+assert metadata.version('flex-gemm') == '1.0.0'
+assert metadata.version('utils3d-moge') == '1.7'
+LearnedPerceptualImagePatchSimilarity(net_type='vgg', normalize=True)
+print('CPU dependency and offline LPIPS checks passed')
+PY
+RUN python -m pip check && slangc -version && nvcc --version
+LABEL ai.explorer.moge.commit=${MOGE_COMMIT} \
+      ai.explorer.flex-gemm.commit=${FLEX_GEMM_COMMIT} \
+      ai.explorer.cuda.arch="8.6" \
+      ai.explorer.attention.backend="native"
+CMD ["bash"]

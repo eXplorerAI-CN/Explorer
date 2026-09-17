@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+defaults:
+  - base_gs.yaml
+  - _self_
+
+novel_path: null
+selected_indices_file: null
+train_test_split_file: null
+image_path_override: null
+num_selected_indices: 1000000

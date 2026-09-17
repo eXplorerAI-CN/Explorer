@@ -1,0 +1,10 @@
+# @package _global_
+
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# order in which configs override each other (/* - denotes a relative search path)
+defaults:
+  - colmap_3dgut_sparse.yaml
+  - override /strategy: mcmc
+  - _self_

@@ -1,0 +1,16 @@
+# @package _global_
+
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# order in which configs override each other (/* - denotes a relative search path)
+defaults:
+  - colmap_3dgut_sparse.yaml
+  - _self_
+
+loss:
+  use_lpips_override: true
+  lambda_lpips_override: 0.1
+  lambda_ssim_override: 0.2
+  lambda_l1_override: 0.8
+  lambda_reconlosses_override: 0.0

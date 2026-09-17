@@ -1,0 +1,15 @@
+# @package _global_
+
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# order in which configs override each other (/* - denotes a relative search path)
+defaults:
+  - /base_gs_sparse
+  - /dataset: colmap
+  - /initialization: colmap
+  - /render: 3dgut
+  - _self_
+
+# overwrite of default parameters
+val_frequency: 999999 # never validate
